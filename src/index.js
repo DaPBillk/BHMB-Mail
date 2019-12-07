@@ -85,6 +85,7 @@ var MailSystem = require("./System.js");
                 "/MAIL BAN player_name (admin only) - bans a user from using the mail.",
                 "/MAIL UNBAN player_name (admin only) - unbans a user from the mail banlist.",
                 "/MAIL CHECK player_name (admin only) - checks the inbox of another player.",
+                "/MAIL CHECKSILENT player_name (admin only) - checks the inbox of another player, but don't send anything if they have no messages.",
                 "/MAIL VIEW mail_id (admin only) - views the letter associcated with any mail_id.",
                 "/MAIL REMOVE mail_id (admin only) - removes the letter associated with the mail_id.",
                 "/MAIL LIST (admin only) - list up to the previous 10 letters sent."
@@ -148,7 +149,7 @@ var MailSystem = require("./System.js");
                   letters.push(mailID+" - From: "+ ex.System.mail[mailID].sender);
                 }
               }
-              ex.bot.send(world.getPlayer(args.split(" ").slice(1).join(" ")).name+" has "+Object.keys(letters).length+" unread messages. \n"+letters.join("\n"));
+              ex.bot.send(world.getPlayer(args.split(" ").slice(1).join(" ")).name+" has "+letters.length+" unread messages. \n"+letters.join("\n"));
             } else {
               var letters = [];
               for (var mailID in ex.System.mail) {
@@ -156,7 +157,31 @@ var MailSystem = require("./System.js");
                   letters.push(mailID+" - From: "+ ex.System.mail[mailID].sender);
                 }
               }
-              ex.bot.send("You have "+Object.keys(letters).length+" unread messages. \n"+letters.join("\n"));
+              ex.bot.send("You have "+letters.length+" unread messages. \n"+letters.join("\n"));
+            }
+          break;
+          case "CHECKSILENT":
+            if (ex.System.banlist.indexOf(player.name) > -1) {return}
+            if (args.split(" ").slice(1).join(" ").length > 0 && player.isAdmin) {
+              var letters = [];
+              for (var mailID in ex.System.mail) {
+                if (ex.System.mail[mailID].target == world.getPlayer(args.split(" ").slice(1).join(" ")).name && !ex.System.mail[mailID].read) {
+                  letters.push(mailID+" - From: "+ ex.System.mail[mailID].sender);
+                }
+              }
+              if (letters.length > 0) {
+                ex.bot.send(world.getPlayer(args.split(" ").slice(1).join(" ")).name+" has "+letters.length+" unread messages. \n"+letters.join("\n"));
+              }
+            } else {
+              var letters = [];
+              for (var mailID in ex.System.mail) {
+                if (ex.System.mail[mailID].target === player.name && !ex.System.mail[mailID].read) {
+                  letters.push(mailID+" - From: "+ ex.System.mail[mailID].sender);
+                }
+              }
+              if (letters.length > 0) {
+                ex.bot.send("You have "+letters.length+" unread messages. \n"+letters.join("\n"));
+              }
             }
           break;
           case "VIEW":
@@ -215,6 +240,18 @@ var MailSystem = require("./System.js");
       ex.load();
 
 
+      function escapeHTML(text) {
+        return text.replace(/&<>"'/g, function(text) {
+          return {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            "'": "&apos;",
+            '"': "&quot;"
+          }[text];
+        })
+      }
+
       //now we start da ui stuff . ugh.
       if (ex.bot.getExports("ui")) {
 
@@ -227,7 +264,10 @@ var MailSystem = require("./System.js");
           ex.tab.querySelector(".letters").innerHTML = "";
           for (var mailID in ex.System.mail) {
             if (ex.System.mail[mailID].target === player.name) {
-              ex.tab.querySelector(".letters").innerHTML += require("./html/letter.html").replace(/{SENDER}/gi, ex.System.mail[mailID].sender).replace(/{CONTENT}/gi, ex.System.mail[mailID].body).replace(/{HEADING}/gi, ex.System.mail[mailID].header.toUpperCase());
+              ex.tab.querySelector(".letters").innerHTML += require("./html/letter.html")
+                .replace(/{SENDER}/gi, escapeHTML(ex.System.mail[mailID].sender))
+                .replace(/{CONTENT}/gi, escapeHTML(ex.System.mail[mailID].body))
+                .replace(/{HEADING}/gi, escapeHTML(ex.System.mail[mailID].header.toUpperCase()));
             }
           }
         });
